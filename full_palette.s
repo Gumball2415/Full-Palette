@@ -17,8 +17,11 @@ row_height = 7
 
 displayed_height = 241 ; affects timing; don't change
 
-counter		= <0
-system		= <0
+.segment "ZEROPAGE"
+	counter:	.res 1
+	system:		.res 1
+
+.segment "CODE"
 
 reset:	jsr init_nes
 	
@@ -339,5 +342,3 @@ notAbove3:
 
 .segment "CHR"
 	.res 8192
-
-.segment "CODE" ; avoids warning
