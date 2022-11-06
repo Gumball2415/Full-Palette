@@ -41,8 +41,9 @@ jmp_table_hi:
 jmp_table_lo:
 	.lobytes timing_ntsc, timing_pal, timing_dendy, null
 
+.align 256
 timing_ntsc:
-	jsr sync_vbl_long
+	jsr sync_vbl_long_ntsc
 
 	; Delay 84 clocks to center horizontally
 	ldx #16
@@ -132,11 +133,187 @@ scanline_ntsc:
 
 	jmp loop_ntsc
 
+.align 256
 timing_pal:
-	jmp timing_pal
+	jsr sync_vbl_long_pal
 
+	; Delay 78 clocks to center horizontally
+	ldx #14
+:	dex
+	bne :-
+loop_pal:
+	; Delay for a total of 7661 clocks
+	jsr blacken_palette	; 315
+
+	; Enable rendering
+	lda #$08	; 6
+	sta $2001
+
+	; Delay 7334 clocks
+	ldy #181
+	ldx #6
+:	dey
+	bne :-
+	dex
+	bne :-
+	nop
+
+	; Draw palette from tables
+	ldy #displayed_height	; 6
+	lda #0
+	clc
+scanline_pal:
+	; Set address as early as possible, to extend first color all the
+	; way off the left edge.
+	ldx #$3F		; 6
+	stx $2006
+
+	ldx tint_table,y
+	stx $2001
+
+	ldx palette_table,y
+
+	; Write the 12 colors to palette. This will immediately increment
+	; PPU address, so color won't be displayed until the next scanline.
+	; This means the colors displayed now are from the previous scanline.
+	stx $2007		; 82
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+
+	; Delay one clock less every third scanline
+	adc #85
+	bcc :+
+:
+	dey
+
+	; Delay last write until as late as possible, so that its color
+	; goes all the way into overscan
+	stx $2007
+	
+	bne scanline_pal
+
+	jmp loop_pal
+
+.align 256
 timing_dendy:
-	jmp timing_dendy
+	jsr sync_vbl_long_pal
+
+	; Delay 78 clocks to center horizontally
+	ldx #15
+:	dex
+	bne :-
+	nop
+loop_dendy:
+	; Delay for a total of 2385 clocks
+	; 315
+	jsr blacken_palette
+
+	; Enable rendering so that we get short and long frames,
+	; allowing image to shake less
+	; 6
+	lda #$08
+	sta $2001
+
+	; 2058
+	ldy #153
+	ldx #2
+:	dey
+	bne :-
+	dex
+	bne :-
+	nop
+	
+	; Draw palette from tables
+	; 6
+	ldy #displayed_height
+	lda #0
+	clc
+scanline_dendy:
+	; Set address as early as possible, to extend first color all the
+	; way off the left edge.
+	ldx #$3F		; 10
+	stx $2006
+	stx $2006
+
+	ldx tint_table,y
+	stx $2001
+
+	ldx palette_table,y
+
+	; Write the 12 colors to palette. This will immediately increment
+	; PPU address, so color won't be displayed until the next scanline.
+	; This means the colors displayed now are from the previous scanline.
+	stx $2007		; 82
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+
+	; Delay one clock less every third scanline
+	adc #85
+	bcc :+
+:
+	dey
+
+	; Delay last write until as late as possible, so that its color
+	; goes all the way into overscan
+	stx $2007
+
+	bne scanline_dendy
+
+	; Delay 5683 clocks, approx. 50 scanlines
+	ldy #108
+	ldx #5
+:	dey
+	bne :-
+	dex
+	bne :-
+
+	jmp loop_dendy
 
 ; unknown system, halt
 null:
@@ -214,7 +391,7 @@ blacken_palette:
 
 
 ; Synchronizes precisely with PPU so that next frame will be long.
-sync_vbl_long:
+sync_vbl_long_ntsc:
 	; Synchronize precisely to VBL. VBL occurs every 29780.67
 	; CPU clocks. Loop takes 27 clocks. Every 1103 iterations,
 	; the second LDA $2002 will read exactly 29781 clocks
@@ -286,6 +463,24 @@ sync_vbl_long:
 	bne :-
 
 @ret:	; Now, if rendering is enabled, first frame will be long.
+	rts
+
+; Same as above but optimized for PAL timings.
+; Since PAL systems do not skip a PPU cycle every odd frame,
+; there's no need to determine whether the first frame is
+; long or short.
+sync_vbl_long_pal:
+	bit $2002
+:	bit $2002
+	bpl :-
+:	nop
+	pha
+	pla
+	lda $2002
+	lda $2002
+	pha
+	pla
+	bpl :-
 	rts
 
 
