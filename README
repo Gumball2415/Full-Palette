@@ -1,0 +1,12 @@
+https://www.nesdev.org/wiki/Full_palette_demo
+
+Displays entire 400+ color NTSC NES palette on screen.
+Disables PPU rendering so that current scanline color can be
+set directly by PPU address, then uses cycle-timed code to
+cycle through all colors in a clean grid.
+
+ca65 -o full_palette_persune.o full_palette.s
+ld65 -C nrom128.cfg full_palette_persune.o -o full_palette_persune.nes
+
+Shay Green <gblargg@gmail.com>
+Modifications by Persune 2022

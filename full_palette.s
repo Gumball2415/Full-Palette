@@ -7,6 +7,7 @@
 ; ld65 -C nrom128.cfg full_palette_persune.o -o full_palette_persune.nes
 ;
 ; Shay Green <gblargg@gmail.com>
+; Modifications by Persune 2022
 
 ; Set to 1 for alternate palette arrangement
 ALT_PALETTE = 0
