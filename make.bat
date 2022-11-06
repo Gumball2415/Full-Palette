@@ -1,3 +1,3 @@
-ca65 -g -o full_palette_persune.o full_palette.s -l list.txt
-ld65 -v -C nrom128.cfg --dbgfile full_palette_persune.dbg full_palette_persune.o -o full_palette_persune.nes
-full_palette_persune.nes
+mkdir output
+ca65 -g -o full_palette_persune.o full_palette.s -l output/list.txt
+ld65 -v -C nrom128.cfg --dbgfile output/full_palette_persune.dbg full_palette_persune.o -o output/full_palette_persune.nes

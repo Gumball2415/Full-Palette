@@ -1,0 +1,18 @@
+name: rom-build
+
+on: push
+
+jobs:
+  rom-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/cache_cc65
+      - name: Run build script
+        run: bash make.bat
+
+      - name: Upload ROM binary
+        uses: actions/upload-artifact@v1
+        with:
+          name: full_palette_persune
+          path: output
