@@ -25,7 +25,7 @@ displayed_height = 241 ; affects timing; don't change
 .segment "CODE"
 
 reset:	jsr init_nes
-	
+
 	lda #0
 	sta counter
 
@@ -41,22 +41,22 @@ jmp_table_hi:
 jmp_table_lo:
 	.lobytes timing_ntsc, timing_pal, timing_dendy, null
 
-timing_ntsc:	
+timing_ntsc:
 	jsr sync_vbl_long
-	
+
 	; Delay 84 clocks to center horizontally
 	ldx #16
 :	dex
 	bne :-
 	bit <0
-	
+
 loop_ntsc:	jsr blacken_palette
-	
+
 	; Enable rendering so that we get short and long frames,
 	; allowing image to shake less
 	lda #$08
 	sta $2001
-	
+
 	; Delay 2045 clocks
 	ldy #150
 	ldx #2
@@ -82,12 +82,12 @@ scanline_ntsc:
 	ldx #$3F		; 10
 	stx $2006
 	stx $2006
-	
+
 	ldx tint_table,y
 	stx $2001
-	
+
 	ldx palette_table,y
-	
+
 	; Write the 12 colors to palette. This will immediately increment
 	; PPU address, so color won't be displayed until the next scanline.
 	; This means the colors displayed now are from the previous scanline.
@@ -117,19 +117,19 @@ scanline_ntsc:
 	inx
 	stx $2007
 	inx
-	
+
 	; Delay one clock less every third scanline
 	adc #85
 	bcc :+
 :
 	dey
-	
+
 	; Delay last write until as late as possible, so that its color
 	; goes all the way into overscan
 	stx $2007
-	
+
 	bne scanline_ntsc
-	
+
 	jmp loop_ntsc
 
 timing_pal:
@@ -234,12 +234,12 @@ sync_vbl_long:
 	pha
 	pla
 	bpl :-
-	
+
 	; Now synchronize with short/long frames.
-	
+
 	; Wait one frame with rendering off. This moves VBL time
 	; earlier by 1/3 CPU clock.
-	
+
 	; Delay 29784 clocks
 	ldx #24
 	ldy #48
@@ -254,7 +254,7 @@ sync_vbl_long:
 	; 1/3 or 2/3 CPU clock.
 	lda #$08
 	sta $2001
-	
+
 	; Delay 29752 clocks
 	ldy #33
 	ldx #24
@@ -266,16 +266,16 @@ sync_vbl_long:
 
 	lda #0
 	sta $2001
-	
+
 	; VBL flag will read set if rendered frame was short
 	bit $2002
 	bmi @ret
-	
+
 	; Rendered frame was long, so wait another (long)
 	; frame with rendering disabled. If rendering were enabled,
 	; this would be a short frame, so we end up in same state
 	; as if it were short frame above.
-	
+
 	; Delay 29782 clocks
 	ldy #39
 	ldx #24
