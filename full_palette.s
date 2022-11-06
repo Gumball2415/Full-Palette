@@ -3,8 +3,8 @@
 ; set directly by PPU address, then uses cycle-timed code to
 ; cycle through all colors in a clean grid.
 ;
-; ca65 -o full_palette.o full_palette.s
-; ld65 -t nes full_palette.o -o full_palette.nes
+; ca65 -o full_palette_persune.o full_palette.s
+; ld65 -C nrom128.cfg full_palette_persune.o -o full_palette_persune.nes
 ;
 ; Shay Green <gblargg@gmail.com>
 
@@ -253,13 +253,13 @@ sync_vbl_long:
 @ret:	; Now, if rendering is enabled, first frame will be long.
 	rts
 
-.segment "HEADER"
-	.byte "NES",26, 2,1, 0,0
+.segment "INESHDR"
+	.byte "NES",26, 1,1, 0,0
 
 .segment "VECTORS"
-	.word 0,0,0, nmi, reset, irq
+	.word nmi, reset, irq
 
-.segment "CHARS"
+.segment "CHR"
 	.res 8192
 
-.segment "STARTUP" ; avoids warning
+.segment "CODE" ; avoids warning
