@@ -17,13 +17,13 @@ row_height = 7
 
 displayed_height = 241 ; affects timing; don't change
 
-even_frame	= <0
+counter		= <0
 system		= <0
 
 reset:	jsr init_nes
 	
 	lda #0
-	sta even_frame
+	sta counter
 	
 	jsr sync_vbl_long
 	
@@ -50,8 +50,8 @@ loop:	jsr blacken_palette
 	bne :-
 
 	; Delay extra clock every other frame
-	inc even_frame
-	lda even_frame
+	inc counter
+	lda counter
 	lsr a
 	bcs :+
 :
@@ -146,7 +146,7 @@ tint_table:
 ;**** Utility routines ****
 irq:
 nmi:
-	inc even_frame
+	inc counter
 	rti
 
 init_nes:
@@ -292,6 +292,7 @@ sync_vbl_long:
 ; counting mapper (e.g. FDS, Konami VRC) working.
 ;
 ; nmis is a variable that the NMI handler modifies every frame.
+; - Renamed to counter
 ; Make sure your NMI handler finishes within 1500 or so cycles (not
 ; taking the whole NMI or waiting for sprite 0) while calling this,
 ; or the result in A will be wrong.
@@ -302,11 +303,11 @@ sync_vbl_long:
 getTVSystem:
     ldx #0
     ldy #0
-    lda nmis
+    lda counter
 nmiwait1:
-    cmp nmis
+    cmp counter
     beq nmiwait1
-    lda nmis
+    lda counter
 
 nmiwait2:
     ; Each iteration takes 11 cycles.
@@ -319,7 +320,7 @@ nmiwait2:
     bne :+
     iny
 :
-    cmp nmis
+    cmp counter
     beq nmiwait2
     tya
     sec
