@@ -20,6 +20,7 @@ displayed_height = 241 ; affects timing; don't change
 .segment "ZEROPAGE"
 	counter:	.res 1
 	system:		.res 1
+	pointer:	.res 2
 
 .segment "CODE"
 
@@ -27,7 +28,20 @@ reset:	jsr init_nes
 	
 	lda #0
 	sta counter
-	
+
+	ldx system
+	lda jmp_table_lo, x
+	sta pointer
+	lda jmp_table_hi, x
+	sta pointer + 1
+	jmp (pointer)
+
+jmp_table_hi:
+	.hibytes timing_ntsc, timing_pal, timing_dendy, null
+jmp_table_lo:
+	.lobytes timing_ntsc, timing_pal, timing_dendy, null
+
+timing_ntsc:	
 	jsr sync_vbl_long
 	
 	; Delay 84 clocks to center horizontally
@@ -36,7 +50,7 @@ reset:	jsr init_nes
 	bne :-
 	bit <0
 	
-loop:	jsr blacken_palette
+loop_ntsc:	jsr blacken_palette
 	
 	; Enable rendering so that we get short and long frames,
 	; allowing image to shake less
@@ -62,7 +76,7 @@ loop:	jsr blacken_palette
 	ldy #displayed_height
 	lda #0
 	clc
-scanline:
+scanline_ntsc:
 	; Set address as early as possible, to extend first color all the
 	; way off the left edge.
 	ldx #$3F		; 10
@@ -114,10 +128,19 @@ scanline:
 	; goes all the way into overscan
 	stx $2007
 	
-	bne scanline
+	bne scanline_ntsc
 	
-	jmp loop
+	jmp loop_ntsc
 
+timing_pal:
+	jmp timing_pal
+
+timing_dendy:
+	jmp timing_dendy
+
+; unknown system, halt
+null:
+	jmp null
 
 ;**** Palette/tint tables ****
 
