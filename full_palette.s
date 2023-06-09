@@ -59,6 +59,7 @@ loop_ntsc:	jsr blacken_palette
 	sta $2001
 
 	; Delay 2045 clocks
+    ; 4 + ((2 - 1) * ((((150 * 5) - 1) + 4) + ((((256 * (2 - 1) * 5) - 1) + 4)) + 6)) - 1
 	ldy #150
 	ldx #2
 :	dey
@@ -230,21 +231,18 @@ loop_dendy:
 	; Delay for a total of 2385 clocks
 	; 315
 	jsr blacken_palette
-
-	; Enable rendering so that we get short and long frames,
-	; allowing image to shake less
-	; 6
-	lda #$08
-	sta $2001
-
-	; 2058
+    ; we don't need to enable rendering, since the dot skip only happens on NTSC
+	; 2064
+	nop
+	nop
+	nop
+	nop
 	ldy #153
 	ldx #2
 :	dey
 	bne :-
 	dex
 	bne :-
-	nop
 	
 	; Draw palette from tables
 	; 6
@@ -354,13 +352,13 @@ nmi:
 
 init_nes:
 	sei
+	jsr wait_vbl
+	jsr wait_vbl
 	; enable NMI to detect TV system
 	lda #$80
 	sta $2000
 	jsr getTVSystem
 	sta system
-	jsr wait_vbl
-	jsr wait_vbl
 	lda #0
 	sta $2000
 	sta $2001
