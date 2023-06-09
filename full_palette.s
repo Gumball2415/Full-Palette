@@ -59,7 +59,7 @@ loop_ntsc:	jsr blacken_palette
 	sta $2001
 
 	; Delay 2045 clocks
-    ; 4 + ((2 - 1) * ((((150 * 5) - 1) + 4) + ((((256 * (2 - 1) * 5) - 1) + 4)) + 6)) - 1
+	; 4 + ((2 - 1) * ((((150 * 5) - 1) + 4) + ((((256 * (2 - 1) * 5) - 1) + 4)) + 6)) - 1
 	ldy #150
 	ldx #2
 :	dey
@@ -231,7 +231,7 @@ loop_dendy:
 	; Delay for a total of 2385 clocks
 	; 315
 	jsr blacken_palette
-    ; we don't need to enable rendering, since the dot skip only happens on NTSC
+	; we don't need to enable rendering, since the dot skip only happens on NTSC
 	; 2064
 	nop
 	nop
@@ -520,35 +520,35 @@ sync_vbl_long_pal:
 ;         Y: high byte of iterations used (1 iteration = 11 cycles)
 ;         X: low byte of iterations used
 getTVSystem:
-    ldx #0
-    ldy #0
-    lda counter
+	ldx #0
+	ldy #0
+	lda counter
 nmiwait1:
-    cmp counter
-    beq nmiwait1
-    lda counter
+	cmp counter
+	beq nmiwait1
+	lda counter
 
 nmiwait2:
-    ; Each iteration takes 11 cycles.
-    ; NTSC NES: 29780 cycles or 2707 = $A93 iterations
-    ; PAL NES:  33247 cycles or 3022 = $BCE iterations
-    ; Dendy:    35464 cycles or 3224 = $C98 iterations
-    ; so we can divide by $100 (rounding down), subtract ten,
-    ; and end up with 0=ntsc, 1=pal, 2=dendy, 3=unknown
-    inx
-    bne :+
-    iny
+	; Each iteration takes 11 cycles.
+	; NTSC NES: 29780 cycles or 2707 = $A93 iterations
+	; PAL NES:  33247 cycles or 3022 = $BCE iterations
+	; Dendy:    35464 cycles or 3224 = $C98 iterations
+	; so we can divide by $100 (rounding down), subtract ten,
+	; and end up with 0=ntsc, 1=pal, 2=dendy, 3=unknown
+	inx
+	bne :+
+	iny
 :
-    cmp counter
-    beq nmiwait2
-    tya
-    sec
-    sbc #10
-    cmp #3
-    bcc notAbove3
-    lda #3
+	cmp counter
+	beq nmiwait2
+	tya
+	sec
+	sbc #10
+	cmp #3
+	bcc notAbove3
+	lda #3
 notAbove3:
-    rts
+	rts
 
 .segment "INESHDR"
 	.byte "NES",26, 1,1, 0,0
