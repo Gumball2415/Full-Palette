@@ -48,7 +48,8 @@ timing_ntsc:
 	ldx #16
 :	dex
 	bne :-
-	bit <0
+	nop
+	nop
 
 loop_ntsc:	jsr blacken_palette
 
@@ -136,9 +137,11 @@ timing_pal:
 	jsr sync_vbl_long_pal
 
 	; Delay 73 clocks to center horizontally
-	ldx #14
+	ldx #13
 :	dex
 	bne :-
+	bit <0
+	bit <0
 
 ; Delay of a total of 7669 clocks
 loop_pal:
@@ -251,16 +254,18 @@ loop_pal:
 
 	jmp loop_pal
 
+; page jumps cause the code to misalign in timings
 .align 256
+
 timing_dendy:
-	jsr sync_vbl_long_dendy
+	jsr sync_vbl_long_pal
 
 	; Delay 78 clocks to center horizontally
 	; 2 + (15 * 5) - 1 + 2
 	ldx #15
 :	dex
 	bne :-
-	nop
+	bit <0
 loop_dendy:
 	; Delay for a total of 2385 clocks
 	; 315
@@ -492,24 +497,8 @@ sync_vbl_long_ntsc:
 @ret:	; Now, if rendering is enabled, first frame will be long.
 	rts
 
-; Same as above but optimized for Dendy timings.
-sync_vbl_long_dendy:
-	bit $2002
-:	bit $2002
-	bpl :-
-:	nop
-	pha
-	pla
-	lda $2002
-	lda $2002
-	pha
-	pla
-	bpl :-
-	rts
-
-; optimized for PAL timings.
+; Same as above but optimized for PAL timings.
 sync_vbl_long_pal:
-	bit $2002
 :	bit $2002
 	bpl :-
 :	nop
