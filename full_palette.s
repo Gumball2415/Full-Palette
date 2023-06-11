@@ -41,7 +41,6 @@ jmp_table_hi:
 jmp_table_lo:
 	.lobytes timing_ntsc, timing_pal, timing_dendy, null
 
-.align 256
 timing_ntsc:
 	jsr sync_vbl_long_ntsc
 
@@ -59,7 +58,6 @@ loop_ntsc:	jsr blacken_palette
 	sta $2001
 
 	; Delay 2045 clocks
-	; 4 + ((2 - 1) * ((((150 * 5) - 1) + 4) + ((((256 * (2 - 1) * 5) - 1) + 4)) + 6)) - 1
 	ldy #150
 	ldx #2
 :	dey
@@ -134,45 +132,47 @@ scanline_ntsc:
 
 	jmp loop_ntsc
 
-.align 256
 timing_pal:
 	jsr sync_vbl_long_pal
 
-	; Delay 78 clocks to center horizontally
+	; Delay 73 clocks to center horizontally
 	ldx #14
 :	dex
 	bne :-
+
+; Delay of a total of 7669 clocks
 loop_pal:
-	; Delay for a total of 7661 clocks
-	jsr blacken_palette	; 315
+	jsr blacken_palette
 
-	; Enable rendering
-	lda #$08	; 6
-	sta $2001
-
-	; Delay 7334 clocks
-	ldy #181
+	; 7357
+	ldy #183
 	ldx #6
 :	dey
 	bne :-
 	dex
 	bne :-
-	nop
 
-	; Draw palette from tables
-	ldy #displayed_height	; 6
-	lda #0
-	clc
-scanline_pal:
+	; Delay extra clock every other frame
+	inc counter
+	lda counter
+	lsr a
+	bcc :+
+:
+; PAL has more unforgiving timings, so we use an unrolled loop to compensate
+; params:
+;	skip_cycle:		skip one cycle
+; 	lut_i:			index into the color LUT
+.macro scanline_pal skip_cycle, lut_i
 	; Set address as early as possible, to extend first color all the
 	; way off the left edge.
-	ldx #$3F		; 6
+	ldx #$3F
+	stx $2006
 	stx $2006
 
-	ldx tint_table,y
+	ldx tint_table + lut_i
 	stx $2001
 
-	ldx palette_table,y
+	ldx palette_table + lut_i
 
 	; Write the 12 colors to palette. This will immediately increment
 	; PPU address, so color won't be displayed until the next scanline.
@@ -203,26 +203,60 @@ scanline_pal:
 	inx
 	stx $2007
 	inx
-
-	; Delay one clock less every third scanline
-	adc #85
-	bcc :+
-:
-	dey
-
+.if skip_cycle
+	nop
+.else
+	bit <0
+.endif
 	; Delay last write until as late as possible, so that its color
 	; goes all the way into overscan
 	stx $2007
-	
-	bne scanline_pal
+.endmacro
+
+; shifts the scanlines into a steady pattern
+.macro scanline_shift line_offset
+	scanline_pal 1, displayed_height - ((16 * line_offset) + 0)
+	scanline_pal 0, displayed_height - ((16 * line_offset) + 1)
+	scanline_pal 1, displayed_height - ((16 * line_offset) + 2)
+	scanline_pal 0, displayed_height - ((16 * line_offset) + 3)
+	scanline_pal 0, displayed_height - ((16 * line_offset) + 4)
+	scanline_pal 1, displayed_height - ((16 * line_offset) + 5)
+	scanline_pal 0, displayed_height - ((16 * line_offset) + 6)
+	scanline_pal 1, displayed_height - ((16 * line_offset) + 7)
+	scanline_pal 0, displayed_height - ((16 * line_offset) + 8)
+	scanline_pal 1, displayed_height - ((16 * line_offset) + 9)
+	scanline_pal 0, displayed_height - ((16 * line_offset) + 10)
+	scanline_pal 0, displayed_height - ((16 * line_offset) + 11)
+	scanline_pal 1, displayed_height - ((16 * line_offset) + 12)
+	scanline_pal 0, displayed_height - ((16 * line_offset) + 13)
+	scanline_pal 1, displayed_height - ((16 * line_offset) + 14)
+	scanline_pal 0, displayed_height - ((16 * line_offset) + 15)
+.endmacro
+
+	scanline_shift 0
+	scanline_shift 1
+	scanline_shift 2
+	scanline_shift 3
+	scanline_shift 4
+	scanline_shift 5
+	scanline_shift 6
+	scanline_shift 7
+	scanline_shift 8
+	scanline_shift 9
+	scanline_shift 10
+	scanline_shift 11
+	scanline_shift 12
+	scanline_shift 13
+	scanline_shift 14
 
 	jmp loop_pal
 
 .align 256
 timing_dendy:
-	jsr sync_vbl_long_pal
+	jsr sync_vbl_long_dendy
 
 	; Delay 78 clocks to center horizontally
+	; 2 + (15 * 5) - 1 + 2
 	ldx #15
 :	dex
 	bne :-
@@ -343,7 +377,6 @@ tint_table:
 	.endrepeat
 	.res border,0
 
-
 ;**** Utility routines ****
 irq:
 nmi:
@@ -371,9 +404,6 @@ wait_vbl:
 	bpl :-
 	rts
 
-.align 256
-
-
 ; Fills palette with black and leaves PPU addr at 0
 blacken_palette:
 	lda #$3F
@@ -386,7 +416,6 @@ blacken_palette:
 	dey
 	bne :-
 	rts
-
 
 ; Synchronizes precisely with PPU so that next frame will be long.
 sync_vbl_long_ntsc:
@@ -463,10 +492,22 @@ sync_vbl_long_ntsc:
 @ret:	; Now, if rendering is enabled, first frame will be long.
 	rts
 
-; Same as above but optimized for PAL timings.
-; Since PAL systems do not skip a PPU cycle every odd frame,
-; there's no need to determine whether the first frame is
-; long or short.
+; Same as above but optimized for Dendy timings.
+sync_vbl_long_dendy:
+	bit $2002
+:	bit $2002
+	bpl :-
+:	nop
+	pha
+	pla
+	lda $2002
+	lda $2002
+	pha
+	pla
+	bpl :-
+	rts
+
+; optimized for PAL timings.
 sync_vbl_long_pal:
 	bit $2002
 :	bit $2002
@@ -551,10 +592,7 @@ notAbove3:
 	rts
 
 .segment "INESHDR"
-	.byte "NES",26, 1,1, 0,0
+	.byte "NES",26, 2,1, 0,0
 
 .segment "VECTORS"
 	.word nmi, reset, irq
-
-.segment "CHR"
-	.res 8192
