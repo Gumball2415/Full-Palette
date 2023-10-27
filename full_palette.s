@@ -3,14 +3,17 @@
 ; set directly by PPU address, then uses cycle-timed code to
 ; cycle through all colors in a clean grid.
 ;
-; ca65 -o full_palette_persune.o full_palette.s
-; ld65 -C nrom128.cfg full_palette_persune.o -o full_palette_persune.nes
+; ca65 -g -o full_palette_persune.o full_palette.s -l output/list.txt
+; ld65 -v -C nrom256.cfg --dbgfile output/full_palette_persune.dbg full_palette_persune.o -o output/full_palette_persune.nes
 ;
 ; Shay Green <gblargg@gmail.com>
-; Modifications by Persune 2022
+; Modifications by Persune 2023
 
 ; Set to 1 for alternate palette arrangement
 ALT_PALETTE = 0
+
+; Set to 1 if NTSC PPU does not have skipped dot behavior
+NO_SKIPPED_DOT = 0
 
 ; Height of each row, from 1 to 7 scanlines
 row_height = 7
@@ -58,6 +61,39 @@ loop_ntsc:	jsr blacken_palette
 	lda #$08
 	sta $2001
 
+.if ::NO_SKIPPED_DOT
+	; need to delay 13 clocks
+	; skip clock on each 3rd frame
+	lda counter ;3
+	adc #85 ;3
+	bcc :+ ;2
+	; -1
+: ;1
+	sta counter ;3
+	nop
+:
+	; Delay 2030 clocks
+	ldy #147
+	ldx #2
+:	dey
+	bne :-
+	nop
+	dex
+	bne :-
+
+	; keep away off-by-one incrementing error
+	lda counter ;3
+	bcc :+ ;2
+	;-1
+	sbc #2 ;2
+	jmp :++ ;3
+: ;1
+	nop ;2
+	nop ;2
+:
+	sta counter ;3
+	nop
+.else
 	; Delay 2045 clocks
 	ldy #150
 	ldx #2
@@ -73,6 +109,7 @@ loop_ntsc:	jsr blacken_palette
 	lsr a
 	bcs :+
 :
+.endif
 	; Draw palette from tables
 	ldy #displayed_height
 	lda #0
@@ -133,14 +170,13 @@ scanline_ntsc:
 
 	jmp loop_ntsc
 
+; on PAL, the cycle alignment seems to shift the entire raster pattern by 6 pixels.
 timing_pal:
 	jsr sync_vbl_long_pal
-
 	; Delay 73 clocks to center horizontally
-	ldx #13
+	ldx #15
 :	dex
 	bne :-
-	bit <0
 	bit <0
 
 ; Delay of a total of 7669 clocks
@@ -257,15 +293,19 @@ loop_pal:
 ; page jumps cause the code to misalign in timings
 .align 256
 
+; on PAL, the cycle alignment seems to shift the entire raster pattern variably
+; TODO: determine cycle alignment, then shift timings accordingly
 timing_dendy:
-	jsr sync_vbl_long_pal
+	bit $2002
+:	bit $2002
+	bpl :-
 
 	; Delay 78 clocks to center horizontally
 	; 2 + (15 * 5) - 1 + 2
-	ldx #15
+	ldx #17
 :	dex
 	bne :-
-	bit <0
+	nop
 loop_dendy:
 	; Delay for a total of 2385 clocks
 	; 315
@@ -422,6 +462,7 @@ blacken_palette:
 	bne :-
 	rts
 
+.align 256
 ; Synchronizes precisely with PPU so that next frame will be long.
 sync_vbl_long_ntsc:
 	; Synchronize precisely to VBL. VBL occurs every 29780.67
@@ -497,21 +538,44 @@ sync_vbl_long_ntsc:
 @ret:	; Now, if rendering is enabled, first frame will be long.
 	rts
 
-; Same as above but optimized for PAL timings.
+.align 256
+; Same as above but for PAL timings.
+; https://www.nesdev.org/wiki/Consistent_frame_synchronization
 sync_vbl_long_pal:
+	; Coarse synchronize
+	bit $2002
 :	bit $2002
 	bpl :-
-:	nop
-	pha
-	pla
-	lda $2002
-	lda $2002
-	pha
-	pla
+
+	sta $4014
+	bit <0
+
+	; Fine synchronize
+:	bit <0
+	nop
+	bit $2002
+	bit $2002
 	bpl :-
+
 	rts
 
+sync_vbl_long_dendy:
+	; Coarse synchronize
+	bit $2002
+:	bit $2002
+	bpl :-
 
+	sta $4014
+	bit <0
+
+	; Fine synchronize
+:	bit <0
+	nop
+	bit $2002
+	bit $2002
+	bpl :-
+
+	rts
 
 ; taken from https://www.nesdev.org/wiki/Detect_TV_system
 ;
