@@ -645,7 +645,12 @@ notAbove3:
 	rts
 
 .segment "INESHDR"
-	.byte "NES",26, 2,1, 0,0
+	.if ::NO_SKIPPED_DOT
+		; force system to be VS System, RP2C03B for no skipped dot behavior
+		.byte "NES", $1A, $02, $01, $00, $09, $00, $00, $00, $00, $00, $00, $00, $00
+	.else
+		.byte "NES", 26, 2, 1, 0, 0
+	.endif
 
 .segment "VECTORS"
 	.word nmi, reset, irq
