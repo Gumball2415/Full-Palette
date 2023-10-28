@@ -5,8 +5,8 @@ Disables PPU rendering so that current scanline color can be
 set directly by PPU address, then uses cycle-timed code to
 cycle through all colors in a clean grid.
 
-ca65 -o full_palette_persune.o full_palette.s
-ld65 -C nrom128.cfg full_palette_persune.o -o full_palette_persune.nes
+ca65 -g -o full_palette_persune.o full_palette.s -l output/list.txt
+ld65 -v -C nrom256.cfg --dbgfile output/full_palette_persune.dbg full_palette_persune.o -o output/full_palette_persune.nes
 
 Shay Green <gblargg@gmail.com>
 Modifications by Persune 2022

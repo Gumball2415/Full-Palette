@@ -547,7 +547,7 @@ sync_vbl_long_ntsc:
 ; Same as above but for PAL timings.
 ; https://www.nesdev.org/wiki/Consistent_frame_synchronization
 sync_vbl_long_pal:
-	; sync precisely to VBL, which occurs every 33,247.5 CPU cycles
+	; sync to VBL, which occurs every 33,247.5 CPU cycles
 	; jitter of up to 1-ish PPU cycles
 
 	; coarse sync
