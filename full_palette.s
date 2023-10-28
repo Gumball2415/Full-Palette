@@ -47,12 +47,22 @@ jmp_table_lo:
 timing_ntsc:
 	jsr sync_vbl_long_ntsc
 
-	; Delay 84 clocks to center horizontally
+	; Delay 88 clocks to center horizontally
+.if ::NO_SKIPPED_DOT
+	ldx #15
+:	dex
+	bne :-
+	; increment counter to set the mod 3 alignment
+	inc counter
+	nop
+	nop
+.else
 	ldx #16
 :	dex
 	bne :-
 	nop
 	nop
+.endif
 
 loop_ntsc:	jsr blacken_palette
 
@@ -173,7 +183,7 @@ scanline_ntsc:
 ; on PAL, the cycle alignment seems to shift the entire raster pattern by 6 pixels.
 timing_pal:
 	jsr sync_vbl_long_pal
-	; Delay 73 clocks to center horizontally
+	; Delay 79 clocks to center horizontally
 	ldx #15
 :	dex
 	bne :-
@@ -296,16 +306,11 @@ loop_pal:
 ; on PAL, the cycle alignment seems to shift the entire raster pattern variably
 ; TODO: determine cycle alignment, then shift timings accordingly
 timing_dendy:
-	bit $2002
-:	bit $2002
-	bpl :-
-
-	; Delay 78 clocks to center horizontally
-	; 2 + (15 * 5) - 1 + 2
+	jsr sync_vbl_long_dendy
+	; Delay 83 clocks to center horizontally
 	ldx #17
 :	dex
 	bne :-
-	nop
 loop_dendy:
 	; Delay for a total of 2385 clocks
 	; 315
@@ -542,38 +547,79 @@ sync_vbl_long_ntsc:
 ; Same as above but for PAL timings.
 ; https://www.nesdev.org/wiki/Consistent_frame_synchronization
 sync_vbl_long_pal:
-	; Coarse synchronize
+	; sync precisely to VBL, which occurs every 33,247.5 CPU cycles
+	; jitter of up to 1-ish PPU cycles
+
+	; coarse sync
 	bit $2002
 :	bit $2002
 	bpl :-
 
-	sta $4014
-	bit <0
-
-	; Fine synchronize
-:	bit <0
+	; align to just a few cycles before scanline 241
+	; delay 33234
+	ldy #123
+	ldx #19
+:	nop
+	dey
+	bne :-
 	nop
+	dex
+	bne :-
+
+	jmp @first_pal
+
+	; every 33,248 cycles, check VBL
+:	ldy #124
+	ldx #19
+:	nop
+	dey
+	bne :-
+	nop
+	dex
+	bne :-
+@first_pal:
 	bit $2002
-	bit $2002
-	bpl :-
+	bpl :--
 
 	rts
 
 sync_vbl_long_dendy:
-	; Coarse synchronize
+	; sync to VBL, which occurs every 35,464 CPU cycles
+	; jitter of up to 3 PPU cycles
+	; coarse sync
 	bit $2002
 :	bit $2002
 	bpl :-
 
-	sta $4014
-	bit <0
-
-	; Fine synchronize
-:	bit <0
+	; align to just a few cycles before scanline 291
+	; delay 35,450
+	ldy #182
+	ldx #20
+:	nop
+	dey
+	bne :-
 	nop
+	dex
+	bne :-
+	nop
+	nop
+
+	jmp @first_dendy
+
+	; every 35,465 cycles, check VBL
+:	ldy #183
+	ldx #20
+:	nop
+	dey
+	bne :-
+	nop
+	dex
+	bne :-
+	bit <0
+	bit <0
+@first_dendy:
 	bit $2002
-	bit $2002
-	bpl :-
+	bpl :--
 
 	rts
 
