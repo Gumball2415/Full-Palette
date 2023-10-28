@@ -308,9 +308,12 @@ loop_pal:
 timing_dendy:
 	jsr sync_vbl_long_dendy
 	; Delay 83 clocks to center horizontally
-	ldx #17
+	ldx #16
 :	dex
 	bne :-
+	nop
+	nop
+	nop
 loop_dendy:
 	; Delay for a total of 2385 clocks
 	; 315
@@ -555,31 +558,84 @@ sync_vbl_long_pal:
 :	bit $2002
 	bpl :-
 
-	; align to just a few cycles before scanline 241
-	; delay 33234
-	ldy #123
-	ldx #19
-:	nop
-	dey
-	bne :-
+	sta $4014
+	bit <0
+	
+	; fine sync
+:	bit <0
 	nop
-	dex
-	bne :-
-
-	jmp @first_pal
-
-	; every 33,248 cycles, check VBL
-:	ldy #124
-	ldx #19
-:	nop
-	dey
-	bne :-
-	nop
-	dex
-	bne :-
-@first_pal:
 	bit $2002
-	bpl :--
+	bit $2002
+	bpl :-
+
+	; ; align to just a few cycles before scanline 241
+	; ; delay 33234
+	; ldy #123
+	; ldx #19
+; :	nop
+	; dey
+	; bne :-
+	; nop
+	; dex
+	; bne :-
+
+	; jmp @first_pal
+
+	; ; every 33,248 cycles, check VBL
+; :	ldy #124
+	; ldx #19
+; :	nop
+	; dey
+	; bne :-
+	; nop
+	; dex
+	; bne :-
+; @first_pal:
+	; bit $2002
+	; bpl :--
+	
+; @search_later: ; 33,250 CPU cycles
+	; ldy #124
+	; ldx #19
+; :	nop
+	; dey
+	; bne :-
+	; nop
+	; dex
+	; bne :-
+	; nop
+
+	; bit $2002
+	; bpl @search_later
+
+	; ; 33,244 CPU cycles
+; @search_earlier:
+	; ldy #123
+	; ldx #19
+; :	nop
+	; dey
+	; bne :-
+	; nop
+	; dex
+	; bne :-
+	; bit <0
+	; nop
+
+	; bit $2002
+	; bmi @search_earlier
+	; ; 33,248 CPU cycles
+; @search_later_finer:
+	; ldy #124
+	; ldx #19
+; :	nop
+	; dey
+	; bne :-
+	; nop
+	; dex
+	; bne :-
+
+	; bit $2002
+	; bpl @search_later_finer
 
 	rts
 
@@ -591,22 +647,7 @@ sync_vbl_long_dendy:
 :	bit $2002
 	bpl :-
 
-	; align to just a few cycles before scanline 291
-	; delay 35,450
-	ldy #182
-	ldx #20
-:	nop
-	dey
-	bne :-
-	nop
-	dex
-	bne :-
-	nop
-	nop
-
-	jmp @first_dendy
-
-	; every 35,465 cycles, check VBL
+	; every 35,463 cycles, check VBL
 :	ldy #183
 	ldx #20
 :	nop
@@ -615,11 +656,11 @@ sync_vbl_long_dendy:
 	nop
 	dex
 	bne :-
-	bit <0
-	bit <0
-@first_dendy:
+	nop
+	nop
+@check_dendy_vbl_dot:
 	bit $2002
-	bpl :--
+	bmi :--
 
 	rts
 
