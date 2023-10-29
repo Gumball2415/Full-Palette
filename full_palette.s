@@ -12,8 +12,8 @@
 ; Set to 1 for alternate palette arrangement
 ALT_PALETTE = 0
 
-; Set to 1 if NTSC PPU does not have skipped dot behavior
-NO_SKIPPED_DOT = 0
+; Set to 1 to force non skipped dot behavior
+FORCE_NO_SKIPPED_DOT = 0
 
 ; Height of each row, from 1 to 7 scanlines
 row_height = 7
@@ -48,21 +48,11 @@ timing_ntsc:
 	jsr sync_vbl_long_ntsc
 
 	; Delay 88 clocks to center horizontally
-.if ::NO_SKIPPED_DOT
-	ldx #15
-:	dex
-	bne :-
-	; increment counter to set the mod 3 alignment
-	inc counter
-	nop
-	nop
-.else
 	ldx #16
 :	dex
 	bne :-
 	nop
 	nop
-.endif
 
 loop_ntsc:	jsr blacken_palette
 
@@ -71,39 +61,6 @@ loop_ntsc:	jsr blacken_palette
 	lda #$08
 	sta $2001
 
-.if ::NO_SKIPPED_DOT
-	; need to delay 13 clocks
-	; skip clock on each 3rd frame
-	lda counter ;3
-	adc #85 ;3
-	bcc :+ ;2
-	; -1
-: ;1
-	sta counter ;3
-	nop
-:
-	; Delay 2030 clocks
-	ldy #147
-	ldx #2
-:	dey
-	bne :-
-	nop
-	dex
-	bne :-
-
-	; keep away off-by-one incrementing error
-	lda counter ;3
-	bcc :+ ;2
-	;-1
-	sbc #2 ;2
-	jmp :++ ;3
-: ;1
-	nop ;2
-	nop ;2
-:
-	sta counter ;3
-	nop
-.else
 	; Delay 2045 clocks
 	ldy #150
 	ldx #2
@@ -119,7 +76,6 @@ loop_ntsc:	jsr blacken_palette
 	lsr a
 	bcs :+
 :
-.endif
 	; Draw palette from tables
 	ldy #displayed_height
 	lda #0
@@ -179,6 +135,121 @@ scanline_ntsc:
 	bne scanline_ntsc
 
 	jmp loop_ntsc
+
+timing_ntsc_noskipdot:
+
+	; Delay 84 clocks to center horizontally
+	ldx #14
+:	dex
+	bne :-
+	; increment counter to set the mod 3 alignment
+	inc counter
+	nop
+	nop
+	nop
+
+loop_ntsc_noskipdot:
+	jsr blacken_palette
+
+	; Enable rendering so that we get short and long frames,
+	; allowing image to shake less
+	lda #$08
+	sta $2001
+
+	; need to delay 13 clocks
+	; skip clock on each 3rd frame
+	lda counter ;3
+	adc #85 ;3
+	bcc :+ ;2
+	; -1
+: ;1
+	sta counter ;3
+	nop
+
+	; Delay 2030 clocks
+	ldy #146
+	ldx #2
+:	dey
+	bne :-
+	nop
+	dex
+	bne :-
+	nop
+
+	; keep away off-by-one incrementing error
+	lda counter ;3
+	bcc :+ ;2
+	;-1
+	sbc #2 ;2
+	jmp :++ ;3
+: ;1
+	nop ;2
+	nop ;2
+:
+	sta counter ;3
+	nop
+
+	; Draw palette from tables
+	ldy #displayed_height
+	lda #0
+	clc
+	jmp scanline_ntsc_noskipdot
+.align 256
+scanline_ntsc_noskipdot:
+	; Set address as early as possible, to extend first color all the
+	; way off the left edge.
+	ldx #$3F		; 10
+	stx $2006
+	stx $2006
+
+	ldx tint_table,y
+	stx $2001
+
+	ldx palette_table,y
+
+	; Write the 12 colors to palette. This will immediately increment
+	; PPU address, so color won't be displayed until the next scanline.
+	; This means the colors displayed now are from the previous scanline.
+	stx $2007		; 82
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+	stx $2007
+	inx
+
+	; Delay one clock less every third scanline
+	adc #85
+	bcc :+
+:
+	dey
+
+	; Delay last write until as late as possible, so that its color
+	; goes all the way into overscan
+	stx $2007
+
+	bne scanline_ntsc_noskipdot
+
+	jmp loop_ntsc_noskipdot
 
 ; on PAL, the cycle alignment seems to shift the entire raster pattern by 6 pixels.
 timing_pal:
@@ -527,7 +598,7 @@ sync_vbl_long_ntsc:
 
 	; VBL flag will read set if rendered frame was short
 	bit $2002
-	bmi @ret
+	bmi @skip_dot_detect
 
 	; Rendered frame was long, so wait another (long)
 	; frame with rendering disabled. If rendering were enabled,
@@ -542,8 +613,46 @@ sync_vbl_long_ntsc:
 	nop
 	dex
 	bne :-
+; Now, if rendering is enabled, first frame will be long.
 
-@ret:	; Now, if rendering is enabled, first frame will be long.
+@skip_dot_detect:	
+	; Delay 89338 clocks / 3 long frames, aligned on cycle 0
+	ldy #175
+	ldx #50
+:	dey
+	nop
+	bne :-
+	dex
+	nop
+	bne :-
+	nop
+
+	; enable rendering here without interfering with the timings
+	lda #$08
+	sta $2001
+
+	; delay 178670 clocks / 6 rendered frames
+	ldy #237
+	ldx #139
+:	dey
+	bne :-
+	nop
+	dex
+	bne :-
+	nop
+	nop
+	nop
+
+	lda #0
+	sta $2001
+
+	bit $2002
+	bmi @skipped_dot
+	pla
+	pla
+	jmp timing_ntsc_noskipdot
+
+@skipped_dot:
 	rts
 
 .align 256
@@ -732,7 +841,7 @@ notAbove3:
 	rts
 
 .segment "INESHDR"
-	.if ::NO_SKIPPED_DOT
+	.if ::FORCE_NO_SKIPPED_DOT
 		; force system to be VS System, RP2C03B for no skipped dot behavior
 		.byte "NES", $1A, $02, $01, $00, $09, $00, $00, $00, $00, $00, $00, $00, $00
 	.else
