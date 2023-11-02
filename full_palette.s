@@ -47,12 +47,11 @@ jmp_table_lo:
 timing_ntsc:
 	jsr sync_vbl_long_ntsc
 
-	; Delay 88 clocks to center horizontally
+	; Delay 87 clocks to center horizontally
 	ldx #16
 :	dex
 	bne :-
-	nop
-	nop
+	bit <0
 
 loop_ntsc:	jsr blacken_palette
 
@@ -653,6 +652,15 @@ sync_vbl_long_ntsc:
 	jmp timing_ntsc_noskipdot
 
 @skipped_dot:
+
+	; Delay 29782 clocks to reduce jitter size
+	ldy #39
+	ldx #24
+:	dey
+	bne :-
+	nop
+	dex
+	bne :-
 	rts
 
 .align 256
